@@ -1,0 +1,101 @@
+!@encoding CP1252
+model ModelName
+uses "mmxprs", "mmive", "mmsystem";!gain access to the Xpress-Optimizer solver
+
+!optional parameters section
+parameters
+!  SAMPLEPARAM1='c:\test\'
+!  SAMPLEPARAM2=false
+   PROJECTDIR='' ! for when file is added to project
+end-parameters
+
+!sample declarations section
+declarations
+ y: mpvar
+ macchine=1..20
+ jobs=1..80
+ 
+ x: array(macchine, jobs) of mpvar
+ 
+ p: array(jobs) of integer
+
+
+ jobMacchineNonCompatibili: array(jobs, macchine) of boolean
+ coppiaConflitto: array(jobs, jobs) of boolean !to distinct if job' and job'' are conflicting jobs or not
+ timeMacchina: array(macchine) of integer
+ 
+ 
+end-declarations
+
+ fopen("inputP.txt", F_INPUT)
+ forall(j in jobs) read(p(j))
+ fclose(F_INPUT)
+ 
+ fopen("inputTM.txt", F_INPUT)
+ forall(i in macchine) read(timeMacchina(i))
+ fclose(F_INPUT)
+ 
+ fopen("inputJMV.txt", F_INPUT)
+ forall(j in jobs)
+ forall(i in macchine)
+ read(jobMacchineNonCompatibili(j,i))
+ fclose(F_INPUT)
+ 
+ fopen("inputConfl.txt", F_INPUT)
+ forall(j in jobs)
+ forall(k in jobs)
+ if(k>j)then
+ read(coppiaConflitto(j,k))
+ end-if
+ fclose(F_INPUT)
+ 
+ setparam("XPRS_MAXTIME",5)
+starttime:= gettime
+ 
+
+forall(j in jobs)do
+sum (i in macchine) x(i,j)=1
+end-do
+
+
+forall(i in macchine)do
+(timeMacchina(i)+sum(j in jobs) p(j)*x(i,j))<=y
+end-do
+
+
+forall(i in macchine, j in jobs) do
+x(i,j) is_binary
+end-do
+
+forall(i in macchine)do
+forall(j in jobs)do
+forall(k in jobs)do
+if(k>j) then
+if(coppiaConflitto(j,k)=true)then
+x(i,j)+x(i,k)<=1
+end-if
+end-if
+end-do
+end-do
+end-do
+
+
+forall(j in jobs)do
+forall(i in macchine)do
+if(jobMacchineNonCompatibili(j,i)=true)then
+x(i,j)<=1
+end-if
+end-do
+end-do
+
+y>=0
+
+
+minimize(y)
+
+writeln("Il minimo makespan è: " , getobjval)
+writeln("Time = ",gettime-starttime);
+
+
+
+end-model

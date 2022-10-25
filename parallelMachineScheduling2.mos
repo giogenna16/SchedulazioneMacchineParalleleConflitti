@@ -1,0 +1,115 @@
+!@encoding CP1252
+model ParallelMachineScheduling2
+uses "mmxprs", "mmive", "mmsystem"; !gain access to the Xpress-Optimizer solver
+
+!optional parameters section
+parameters
+
+   PROJECTDIR='' ! for when file is added to project
+end-parameters
+
+!sample declarations section
+declarations
+! ...
+ ! Objective:linctr
+ y: mpvar
+ macchine=1..50
+ jobs=1..400
+ x: array(macchine, jobs) of mpvar
+ p: array(jobs) of integer
+ coppiaConflitto: array(jobs, jobs) of boolean !to distinct if job' and job'' are conflicting jobs or not
+ 
+ alea: real !the probability to be in conflict
+
+end-declarations
+
+!set pj in a randomic way (from 1 to 100)
+ forall(j in jobs) do
+ p(j):=50+integer(50*random)
+ end-do
+ 
+! njob:=10
+!nmach:=4
+!fopen("pmach.txt",F_INPUT)
+!!read(njob)
+!read(nmach)
+!forall(i in 1..njob) read(proc(i));
+!fclose(F_INPUT)
+ 
+ !assuming p1>=p2>=...>=pn
+ !qsort(false,p)
+
+setparam("XPRS_MAXTIME",120)
+starttime:= gettime
+
+
+!every job is scheduled exactly on one machine
+forall(j in jobs)do
+sum (i in macchine) x(i,j)=1
+end-do
+
+
+forall(i in macchine)do
+sum(j in jobs) p(j)*x(i,j)<=y
+end-do
+
+
+forall(i in macchine, j in jobs) do
+x(i,j) is_binary
+end-do
+
+
+!conflicts
+forall(j in jobs)do
+forall(k in jobs)do
+if(k>j)then
+alea:=random
+if(alea<=0.20)then
+coppiaConflitto(j,k):=true
+end-if
+if(alea>0.20)then
+coppiaConflitto(j,k):=false
+end-if
+end-if
+end-do
+end-do
+
+forall(i in macchine)do
+forall(j in jobs)do
+forall(k in jobs)do
+if(k>j) then
+if(coppiaConflitto(j,k)=true)then
+x(i,j)+x(i,k)<=1
+end-if
+end-if
+end-do
+end-do
+end-do
+
+
+y>=0
+
+
+minimize(y)
+
+
+writeln("Il minimo makespan è: " , getobjval)
+writeln("Time = ",gettime-starttime);
+
+forall(j in jobs) do
+writeln(p(j))
+end-do
+
+
+forall(j in jobs)do
+forall(k in jobs)do
+if(k>j) then
+if(coppiaConflitto(j,k)=true)then
+writeln(j, ",",k)
+end-if
+end-if
+end-do
+end-do
+
+
+end-model
